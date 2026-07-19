@@ -1,0 +1,138 @@
+# ============================================================
+# Salesforce Service — Local Development Stack
+# Includes: salesforce-service, PostgreSQL, MinIO
+# ============================================================
+
+version: "3.9"
+
+services:
+  # -----------------------------------------------------------
+  # Salesforce Service
+  # -----------------------------------------------------------
+  salesforce-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: salesforce-service
+    ports:
+      - "5710:5710"
+    environment:
+      # Flask
+      FLASK_ENV: development
+      FLASK_DEBUG: "True"
+      SECRET_KEY: "dev-secret-key-change-in-production-32chars!"
+      PORT: "5710"
+      HOST: "0.0.0.0"
+      ENVIRONMENT: dev
+      APP_VERSION: "1.0.0"
+      APP_TITLE: "Salesforce Service"
+      LOG_LEVEL: DEBUG
+      LOG_FORMAT: text
+      LOKI_ENABLED: "false"
+
+      # Database
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: salesforce_dev
+      DB_USER: dev_user
+      DB_PASSWORD: dev_pass
+      DB_SCHEMA: public
+
+      # Salesforce (replace with your sandbox credentials)
+      SF_CONSUMER_KEY: "${SF_CONSUMER_KEY:-your-consumer-key}"
+      SF_PRIVATE_KEY_PEM: "${SF_PRIVATE_KEY_PEM:-}"
+      SF_USERNAME: "${SF_USERNAME:-test@sandbox.com}"
+      SF_LOGIN_URL: "https://test.salesforce.com"
+      SF_API_VERSION: "v59.0"
+      SF_BULK_PAGE_SIZE: "50000"
+      SF_MAX_JOB_TIMEOUT_HOURS: "2"
+
+      # Scan limits
+      MAX_CONCURRENT_SCANS: "2"
+      SCAN_TIMEOUT_HOURS: "2"
+      CLEANUP_DAYS: "7"
+
+      # HMAC (disabled for local dev)
+      HMAC_ENABLED: "false"
+      HMAC_SECRET_KEY_CORE: "dev-hmac-core-key-32-characters!!"
+      HMAC_SECRET_KEY_ENGINEER: "dev-hmac-engineer-key-32-chars!!"
+      HMAC_SIGNATURE_MAX_AGE: "300"
+
+      # MinIO
+      MINIO_ENABLED: "true"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_SECURE: "false"
+      MINIO_BUCKET: salesforce-dev
+
+      # PII (disabled for local dev)
+      PII_MASKING_ENABLED: "false"
+      PII_SERVICE_URL: "http://localhost:8100"
+      PII_HMAC_KEY: "dev-pii-hmac-key-32-characters!!"
+      PII_SERVICE_ID: "sf-service-dev"
+
+      # CORS
+      ALLOWED_ORIGINS: "*"
+      CORE_SERVICE_URL: "http://localhost:5700"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - salesforce-net
+    restart: unless-stopped
+
+  # -----------------------------------------------------------
+  # PostgreSQL
+  # -----------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: salesforce-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: salesforce_dev
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: dev_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d salesforce_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - salesforce-net
+
+  # -----------------------------------------------------------
+  # MinIO (S3-compatible object storage)
+  # -----------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: salesforce-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - salesforce-net
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  salesforce-net:
+    driver: bridge
