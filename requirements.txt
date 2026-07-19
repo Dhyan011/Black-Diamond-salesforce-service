@@ -1,0 +1,42 @@
+# Web Framework
+Flask==3.1.1
+Flask-RESTX==1.3.0
+Flask-Cors==5.0.1
+Werkzeug==3.1.3
+
+# Configuration & Validation
+pydantic==2.11.3
+pydantic-settings==2.9.1
+python-dotenv==1.1.0
+
+# Salesforce
+simple-salesforce==1.12.6
+PyJWT==2.10.1
+cryptography==44.0.3
+
+# HTTP Client
+requests==2.32.3
+urllib3==2.4.0
+
+# Data Processing
+pandas==2.2.3
+pyarrow==20.0.0
+
+# Object Storage
+minio==7.2.15
+
+# Database
+psycopg2-binary==2.9.10
+SQLAlchemy==2.0.41
+
+# Production Server
+gunicorn==23.0.0
+
+# Logging
+python-json-logger==3.3.0
+
+# Testing
+pytest==8.3.5
+pytest-cov==6.1.1
+pytest-mock==3.14.0
+responses==0.25.7
